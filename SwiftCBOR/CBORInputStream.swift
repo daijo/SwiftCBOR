@@ -1,6 +1,6 @@
 public protocol CBORInputStream {
-	mutating func popByte() throws -> UInt8
-	mutating func popBytes(_ n: Int) throws -> ArraySlice<UInt8>
+    func popByte() throws -> (byte: UInt8, rest: CBORInputStream)
+    func popBytes(_ n: Int) throws -> (bytes: ArraySlice<UInt8>, rest: CBORInputStream)
 }
 
 // FUCK: https://openradar.appspot.com/23255436
@@ -14,29 +14,30 @@ struct ArrayUInt8 {
 
 extension ArraySliceUInt8: CBORInputStream {
 
-	mutating func popByte() throws -> UInt8 {
+    func popByte() throws -> (byte: UInt8, rest: CBORInputStream) {
 		if slice.count < 1 { throw CBORError.unfinishedSequence }
-		return slice.removeFirst()
+        return (byte: slice.first!, rest:ArraySliceUInt8(slice: slice.dropFirst(1)))
 	}
 
-	mutating func popBytes(_ n: Int) throws -> ArraySlice<UInt8> {
+    func popBytes(_ n: Int) throws -> (bytes: ArraySlice<UInt8>, rest: CBORInputStream) {
 		if slice.count < n { throw CBORError.unfinishedSequence }
 		let result = slice.prefix(n)
-		slice = slice.dropFirst(n)
-		return result
+        return (bytes: result, rest: ArraySliceUInt8(slice: slice.dropFirst(n)))
 	}
 
 }
 
 extension ArrayUInt8: CBORInputStream {
-    mutating func popByte() throws -> UInt8 {
+
+    func popByte() throws -> (byte: UInt8, rest: CBORInputStream) {
         guard array.count > 0 else { throw CBORError.unfinishedSequence }
-        return array.removeFirst()
+        return (byte: array.first!, rest: ArrayUInt8(array: Array(array.dropFirst(1))))
     }
-    mutating func popBytes(_ n: Int) throws -> ArraySlice<UInt8> {
+
+    func popBytes(_ n: Int) throws -> (bytes: ArraySlice<UInt8>, rest: CBORInputStream) {
         guard array.count >= n else { throw CBORError.unfinishedSequence }
-        let res = array.prefix(n)
-        array = Array(array.dropFirst(n))
-        return res
+        let result = array.prefix(n)
+        return (bytes: result, rest: ArrayUInt8(array: Array(array.dropFirst(n))))
     }
+
 }
